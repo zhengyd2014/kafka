@@ -1183,6 +1183,7 @@ class Log(@volatile private var _dir: File,
     maybeFlushMetadataFile()
 
     val appendInfo = analyzeAndValidateRecords(records, origin, ignoreRecordSize, leaderEpoch)
+    trace(s"After analyzeAndValidateRecords: appendInfo = ${appendInfo}")
 
     // return if we have no valid messages or if this is a duplicate of the last appended entry
     if (appendInfo.shallowCount == 0) appendInfo
@@ -1190,6 +1191,7 @@ class Log(@volatile private var _dir: File,
 
       // trim any invalid bytes or partial messages before appending it to the on-disk log
       var validRecords = trimInvalidBytes(records, appendInfo)
+      trace(s"After trimInvalidBytes: validRecords = ${validRecords}")
 
       // they are valid, insert them in the log
       lock synchronized {
@@ -1201,6 +1203,7 @@ class Log(@volatile private var _dir: File,
             appendInfo.firstOffset = Some(LogOffsetMetadata(offset.value))
             val now = time.milliseconds
             val validateAndOffsetAssignResult = try {
+              trace(s"Before LogValidator.validateMessagesAndAssignOffsets: passing in offset = ${offset}")
               LogValidator.validateMessagesAndAssignOffsets(validRecords,
                 topicPartition,
                 offset,
@@ -1221,6 +1224,7 @@ class Log(@volatile private var _dir: File,
                 throw new KafkaException(s"Error validating messages while appending to log $name", e)
             }
             validRecords = validateAndOffsetAssignResult.validatedRecords
+            trace(s"After LogValidator.validateMessagesAndAssignOffsets: validRecords = ${validRecords}")
             appendInfo.maxTimestamp = validateAndOffsetAssignResult.maxTimestamp
             appendInfo.offsetOfMaxTimestamp = validateAndOffsetAssignResult.shallowOffsetOfMaxTimestamp
             appendInfo.lastOffset = offset.value - 1
@@ -1270,6 +1274,7 @@ class Log(@volatile private var _dir: File,
           // update the epoch cache with the epoch stamped onto the message by the leader
           validRecords.batches.forEach { batch =>
             if (batch.magic >= RecordBatch.MAGIC_VALUE_V2) {
+              trace(s"Before calling maybeAssignEpochStartOffset, batch.partitionLeaderEpoch = ${batch.partitionLeaderEpoch},  batch.baseOffset = ${batch.baseOffset}")
               maybeAssignEpochStartOffset(batch.partitionLeaderEpoch, batch.baseOffset)
             } else {
               // In partial upgrade scenarios, we may get a temporary regression to the message format. In
@@ -1313,6 +1318,7 @@ class Log(@volatile private var _dir: File,
                 offsetMetadata.copy(segmentBaseOffset = segment.baseOffset, relativePositionInSegment = segment.size)
               }
 
+              trace(s"Before segment.append: appendInfo = ${appendInfo}, validRecords: ${validRecords}")
               segment.append(largestOffset = appendInfo.lastOffset,
                 largestTimestamp = appendInfo.maxTimestamp,
                 shallowOffsetOfMaxTimestamp = appendInfo.offsetOfMaxTimestamp,
@@ -1325,6 +1331,7 @@ class Log(@volatile private var _dir: File,
               // ProducerStateManager will not be updated and the last stable offset will not advance
               // if the append to the transaction index fails.
               updateLogEndOffset(appendInfo.lastOffset + 1)
+              trace(s"After updateLogEndOffset: nextOffsetMetadata = ${nextOffsetMetadata}")
 
               // update the producer state
               updatedProducers.values.foreach(producerAppendInfo => producerStateManager.update(producerAppendInfo))

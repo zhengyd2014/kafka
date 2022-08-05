@@ -83,6 +83,7 @@ class LeaderEpochFileCache(topicPartition: TopicPartition,
 
     inWriteLock(lock) {
       if (isUpdateNeeded) {
+        trace(s"update epoch cache with ${entry}")
         maybeTruncateNonMonotonicEntries(entry)
         epochs.put(entry.epoch, entry)
         true

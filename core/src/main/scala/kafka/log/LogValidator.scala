@@ -98,14 +98,18 @@ private[log] object LogValidator extends Logging {
                                                     brokerTopicStats: BrokerTopicStats): ValidationAndOffsetAssignResult = {
     if (sourceCodec == NoCompressionCodec && targetCodec == NoCompressionCodec) {
       // check the magic value
-      if (!records.hasMatchingMagic(magic))
+      if (!records.hasMatchingMagic(magic)) {
+        trace(s"Before calling convertAndAssignOffsetsNonCompressed: offsetCounter = ${offsetCounter}")
         convertAndAssignOffsetsNonCompressed(records, topicPartition, offsetCounter, compactedTopic, time, now, timestampType,
           timestampDiffMaxMs, magic, partitionLeaderEpoch, origin, brokerTopicStats)
-      else
+      } else {
         // Do in-place validation, offset assignment and maybe set timestamp
+        trace(s"Before calling assignOffsetsNonCompressed: offsetCounter = ${offsetCounter}")
         assignOffsetsNonCompressed(records, topicPartition, offsetCounter, now, compactedTopic, timestampType, timestampDiffMaxMs,
           partitionLeaderEpoch, origin, magic, brokerTopicStats)
+      }
     } else {
+      trace(s"Before calling validateMessagesAndAssignOffsetsCompressed: offsetCounter = ${offsetCounter}")
       validateMessagesAndAssignOffsetsCompressed(records, topicPartition, offsetCounter, time, now, sourceCodec, targetCodec, compactedTopic,
         magic, timestampType, timestampDiffMaxMs, partitionLeaderEpoch, origin, interBrokerProtocolVersion, brokerTopicStats)
     }
@@ -223,6 +227,7 @@ private[log] object LogValidator extends Logging {
                                                    partitionLeaderEpoch: Int,
                                                    origin: AppendOrigin,
                                                    brokerTopicStats: BrokerTopicStats): ValidationAndOffsetAssignResult = {
+    trace(s"Enter convertAndAssignOffsetsNonCompressed, offsetCounter = ${offsetCounter.value}")
     val startNanos = time.nanoseconds
     val sizeInBytesAfterConversion = AbstractRecords.estimateSizeInBytes(toMagicValue, offsetCounter.value,
       CompressionType.NONE, records.records)
@@ -246,8 +251,11 @@ private[log] object LogValidator extends Logging {
         validateRecord(batch, topicPartition, record, batchIndex, now, timestampType,
           timestampDiffMaxMs, compactedTopic, brokerTopicStats).foreach(recordError => recordErrors += recordError)
         // we fail the batch if any record fails, so we stop appending if any record fails
-        if (recordErrors.isEmpty)
-          builder.appendWithOffset(offsetCounter.getAndIncrement(), record)
+        if (recordErrors.isEmpty) {
+          val offset = offsetCounter.getAndIncrement()
+          trace(s"In convertAndAssignOffsetsNonCompressed: set record offset = ${offset}")
+          builder.appendWithOffset(offset, record)
+        }
       }
 
       processRecordErrors(recordErrors)
@@ -277,6 +285,8 @@ private[log] object LogValidator extends Logging {
                                          origin: AppendOrigin,
                                          magic: Byte,
                                          brokerTopicStats: BrokerTopicStats): ValidationAndOffsetAssignResult = {
+    trace(s"Enter assignOffsetsNonCompressed, offsetCounter = ${offsetCounter.value}")
+
     var maxTimestamp = RecordBatch.NO_TIMESTAMP
     var offsetOfMaxTimestamp = -1L
     val initialOffset = offsetCounter.value
@@ -311,6 +321,7 @@ private[log] object LogValidator extends Logging {
         offsetOfMaxTimestamp = offsetOfMaxBatchTimestamp
       }
 
+      trace(s"In assignOffsetsNonCompressed, batch.setLastOffset = ${offsetCounter.value - 1}")
       batch.setLastOffset(offsetCounter.value - 1)
 
       if (batch.magic >= RecordBatch.MAGIC_VALUE_V2)
@@ -463,6 +474,7 @@ private[log] object LogValidator extends Logging {
       val batch = records.batches.iterator.next()
       val lastOffset = offsetCounter.addAndGet(validatedRecords.size) - 1
 
+      trace(s"In validateRecordCompression: batch.setLastOffset = ${lastOffset}")
       batch.setLastOffset(lastOffset)
 
       if (timestampType == TimestampType.LOG_APPEND_TIME)
@@ -504,7 +516,9 @@ private[log] object LogValidator extends Logging {
       logAppendTime, producerId, producerEpoch, baseSequence, isTransactional, partitionLeaderEpoch)
 
     validatedRecords.foreach { record =>
-      builder.appendWithOffset(offsetCounter.getAndIncrement(), record)
+      val offset = offsetCounter.getAndIncrement()
+      trace(s"In buildRecordsAndAssignOffsets: append ${offset} for record: ${record}")
+      builder.appendWithOffset(offset, record)
     }
 
     val records = builder.build()
