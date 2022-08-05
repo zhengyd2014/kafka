@@ -320,7 +320,7 @@ private[log] object LogValidator extends Logging {
       }
 
       if (offsetCounter.value - 1 <= 0) {
-        trace(s"[$TopicPartition] In assignOffsetsNonCompressed, batch.setLastOffset = ${offsetCounter.value - 1}")
+        trace(s"[$topicPartition] In assignOffsetsNonCompressed, batch.setLastOffset = ${offsetCounter.value - 1}")
       }
       batch.setLastOffset(offsetCounter.value - 1)
 

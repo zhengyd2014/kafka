@@ -1272,6 +1272,13 @@ class Log(@volatile private var _dir: File,
 
           // update the epoch cache with the epoch stamped onto the message by the leader
           validRecords.batches.forEach { batch =>
+
+            if (batch.lastOffset < appendInfo.lastOffset) {
+              val errmsg = s"batch.lastOffset less than appendInfo.lastOffset: ${batch.lastOffset} < ${appendInfo.lastOffset}"
+              error(errmsg)
+              throw new Exception(errmsg) // to fail fast
+            }
+
             if (batch.magic >= RecordBatch.MAGIC_VALUE_V2) {
               if (batch.baseOffset() <= 0) {
                 trace(s"Before maybeAssignEpochStartOffset, batch.partitionLeaderEpoch = ${batch.partitionLeaderEpoch}, " +
