@@ -1203,7 +1203,7 @@ class Log(@volatile private var _dir: File,
             appendInfo.firstOffset = Some(LogOffsetMetadata(offset.value))
             val now = time.milliseconds
             val validateAndOffsetAssignResult = try {
-              trace(s"Before LogValidator.validateMessagesAndAssignOffsets: passing in offset = ${offset}")
+              trace(s"Before LogValidator.validateMessagesAndAssignOffsets: passing in offset = ${offset.value}")
               LogValidator.validateMessagesAndAssignOffsets(validRecords,
                 topicPartition,
                 offset,
@@ -1274,7 +1274,7 @@ class Log(@volatile private var _dir: File,
           // update the epoch cache with the epoch stamped onto the message by the leader
           validRecords.batches.forEach { batch =>
             if (batch.magic >= RecordBatch.MAGIC_VALUE_V2) {
-              trace(s"Before calling maybeAssignEpochStartOffset, batch.partitionLeaderEpoch = ${batch.partitionLeaderEpoch},  batch.baseOffset = ${batch.baseOffset}")
+              trace(s"Before maybeAssignEpochStartOffset, batch.partitionLeaderEpoch = ${batch.partitionLeaderEpoch},  batch.baseOffset = ${batch.baseOffset}")
               maybeAssignEpochStartOffset(batch.partitionLeaderEpoch, batch.baseOffset)
             } else {
               // In partial upgrade scenarios, we may get a temporary regression to the message format. In

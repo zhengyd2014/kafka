@@ -104,7 +104,7 @@ private[log] object LogValidator extends Logging {
           timestampDiffMaxMs, magic, partitionLeaderEpoch, origin, brokerTopicStats)
       } else {
         // Do in-place validation, offset assignment and maybe set timestamp
-        trace(s"Before calling assignOffsetsNonCompressed: offsetCounter = ${offsetCounter}")
+        trace(s"Before calling assignOffsetsNonCompressed: offsetCounter = ${offsetCounter.value}")
         assignOffsetsNonCompressed(records, topicPartition, offsetCounter, now, compactedTopic, timestampType, timestampDiffMaxMs,
           partitionLeaderEpoch, origin, magic, brokerTopicStats)
       }
