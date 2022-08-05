@@ -20,11 +20,8 @@ import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.errors.CorruptRecordException;
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.utils.BufferSupplier;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
-import org.apache.kafka.common.utils.ByteUtils;
-import org.apache.kafka.common.utils.CloseableIterator;
-import org.apache.kafka.common.utils.Crc32C;
+import org.apache.kafka.common.utils.*;
+import org.slf4j.Logger;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -97,6 +94,8 @@ import static org.apache.kafka.common.record.Records.LOG_OVERHEAD;
  *  -------------------------------------------------------------------------------------------------
  */
 public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRecordBatch {
+
+
     static final int BASE_OFFSET_OFFSET = 0;
     static final int BASE_OFFSET_LENGTH = 8;
     static final int LENGTH_OFFSET = BASE_OFFSET_OFFSET + BASE_OFFSET_LENGTH;
@@ -355,6 +354,12 @@ public class DefaultRecordBatch extends AbstractRecordBatch implements MutableRe
     @Override
     public void setLastOffset(long offset) {
         buffer.putLong(BASE_OFFSET_OFFSET, offset - lastOffsetDelta());
+        if (offset - lastOffsetDelta() <= 0) {
+            LogContext logContext = new LogContext("[Walmart]");
+            Logger log = logContext.logger(getClass());
+            log.error("in DefaultRecordBatch.setLastOffset: offset = {}, lastOffsetDelta = {}, BASE_OFFSET_OFFSET = {}, LAST_OFFSET_DELTA_OFFSET ={}",
+                    offset, lastOffsetDelta(), BASE_OFFSET_OFFSET, LAST_OFFSET_DELTA_OFFSET);
+        }
     }
 
     @Override

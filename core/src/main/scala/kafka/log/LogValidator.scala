@@ -99,17 +99,17 @@ private[log] object LogValidator extends Logging {
     if (sourceCodec == NoCompressionCodec && targetCodec == NoCompressionCodec) {
       // check the magic value
       if (!records.hasMatchingMagic(magic)) {
-        trace(s"Before calling convertAndAssignOffsetsNonCompressed: offsetCounter = ${offsetCounter}")
+        trace(s"[${topicPartition}] Before convertAndAssignOffsetsNonCompressed: offsetCounter = ${offsetCounter}")
         convertAndAssignOffsetsNonCompressed(records, topicPartition, offsetCounter, compactedTopic, time, now, timestampType,
           timestampDiffMaxMs, magic, partitionLeaderEpoch, origin, brokerTopicStats)
       } else {
         // Do in-place validation, offset assignment and maybe set timestamp
-        trace(s"Before calling assignOffsetsNonCompressed: offsetCounter = ${offsetCounter.value}")
+        trace(s"[${topicPartition}] Before assignOffsetsNonCompressed: offsetCounter = ${offsetCounter.value}")
         assignOffsetsNonCompressed(records, topicPartition, offsetCounter, now, compactedTopic, timestampType, timestampDiffMaxMs,
           partitionLeaderEpoch, origin, magic, brokerTopicStats)
       }
     } else {
-      trace(s"Before calling validateMessagesAndAssignOffsetsCompressed: offsetCounter = ${offsetCounter}")
+      trace(s"[${topicPartition}] Before validateMessagesAndAssignOffsetsCompressed: offsetCounter = ${offsetCounter}")
       validateMessagesAndAssignOffsetsCompressed(records, topicPartition, offsetCounter, time, now, sourceCodec, targetCodec, compactedTopic,
         magic, timestampType, timestampDiffMaxMs, partitionLeaderEpoch, origin, interBrokerProtocolVersion, brokerTopicStats)
     }
@@ -285,8 +285,6 @@ private[log] object LogValidator extends Logging {
                                          origin: AppendOrigin,
                                          magic: Byte,
                                          brokerTopicStats: BrokerTopicStats): ValidationAndOffsetAssignResult = {
-    trace(s"Enter assignOffsetsNonCompressed, offsetCounter = ${offsetCounter.value}")
-
     var maxTimestamp = RecordBatch.NO_TIMESTAMP
     var offsetOfMaxTimestamp = -1L
     val initialOffset = offsetCounter.value
@@ -321,7 +319,9 @@ private[log] object LogValidator extends Logging {
         offsetOfMaxTimestamp = offsetOfMaxBatchTimestamp
       }
 
-      trace(s"In assignOffsetsNonCompressed, batch.setLastOffset = ${offsetCounter.value - 1}")
+      if (offsetCounter.value - 1 <= 0) {
+        trace(s"[$TopicPartition] In assignOffsetsNonCompressed, batch.setLastOffset = ${offsetCounter.value - 1}")
+      }
       batch.setLastOffset(offsetCounter.value - 1)
 
       if (batch.magic >= RecordBatch.MAGIC_VALUE_V2)

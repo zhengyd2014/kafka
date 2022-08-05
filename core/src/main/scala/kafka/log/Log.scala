@@ -1183,7 +1183,6 @@ class Log(@volatile private var _dir: File,
     maybeFlushMetadataFile()
 
     val appendInfo = analyzeAndValidateRecords(records, origin, ignoreRecordSize, leaderEpoch)
-    trace(s"After analyzeAndValidateRecords: appendInfo = ${appendInfo}")
 
     // return if we have no valid messages or if this is a duplicate of the last appended entry
     if (appendInfo.shallowCount == 0) appendInfo
@@ -1274,7 +1273,10 @@ class Log(@volatile private var _dir: File,
           // update the epoch cache with the epoch stamped onto the message by the leader
           validRecords.batches.forEach { batch =>
             if (batch.magic >= RecordBatch.MAGIC_VALUE_V2) {
-              trace(s"Before maybeAssignEpochStartOffset, batch.partitionLeaderEpoch = ${batch.partitionLeaderEpoch},  batch.baseOffset = ${batch.baseOffset}")
+              if (batch.baseOffset() <= 0) {
+                trace(s"Before maybeAssignEpochStartOffset, batch.partitionLeaderEpoch = ${batch.partitionLeaderEpoch}, " +
+                  s"batch.baseOffset = ${batch.baseOffset}, validateAndAssignOffsets = $validateAndAssignOffsets")
+              }
               maybeAssignEpochStartOffset(batch.partitionLeaderEpoch, batch.baseOffset)
             } else {
               // In partial upgrade scenarios, we may get a temporary regression to the message format. In
