@@ -1273,11 +1273,21 @@ class Log(@volatile private var _dir: File,
           // update the epoch cache with the epoch stamped onto the message by the leader
           validRecords.batches.forEach { batch =>
             if (batch.magic >= RecordBatch.MAGIC_VALUE_V2) {
-              if (batch.baseOffset() <= 0) {
-                while (true) {
-                  trace(s"Before maybeAssignEpochStartOffset, batch.partitionLeaderEpoch = ${batch.partitionLeaderEpoch}, " +
-                    s"batch.baseOffset = ${batch.baseOffset}, validateAndAssignOffsets = $validateAndAssignOffsets")
-                  Thread.sleep(10000)
+                if (batch.baseOffset() <= 0) {
+                var batchCount = 0
+                validRecords.batches.forEach { batch =>
+                  trace(s"batch #${batchCount} in validRecords: $batch")
+                  trace(s"batch.baseOffset: ${batch.baseOffset()}, batch.lastOffset: ${batch.lastOffset()}," +
+                    s" batch.nextOffset: ${batch.nextOffset()}, batch.sizeInBytes: ${batch.sizeInBytes()}, batch.compressionType: ${batch.compressionType()}," +
+                    s" batch.isCompressed: ${batch.isCompressed}, batch.isControlBatch: ${batch.isControlBatch}, batch.isTransactional: ${batch.isTransactional}," +
+                    s" batch.hasProducerId: ${batch.hasProducerId}, batch.isValid: ${batch.isValid}, batch.timestampType: ${batch.timestampType()}")
+                  batchCount += 1
+                }
+
+                while (appendInfo.firstOffset.isDefined && appendInfo.firstOffset.get.messageOffset > 0) {
+                  trace(s"Walmart Team: Issue Reproduced: batch.partitionLeaderEpoch = ${batch.partitionLeaderEpoch}, " +
+                   s"batch.baseOffset = ${batch.baseOffset}, validateAndAssignOffsets = $validateAndAssignOffsets")
+                  Thread.sleep(60000)
                 }
               }
               maybeAssignEpochStartOffset(batch.partitionLeaderEpoch, batch.baseOffset)
